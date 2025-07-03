@@ -1,56 +1,9 @@
 plugins {
-    `java-library`
+    id("minestom.java-library")
+    id("minestom.publishing")
     alias(libs.plugins.blossom)
-}
 
-// Read env vars (used for publishing generally)
-version = System.getenv("MINESTOM_VERSION") ?: "dev"
-val channel = System.getenv("MINESTOM_CHANNEL") ?: "local" // local, snapshot, release
-val javaVersion = System.getenv("JAVA_VERSION") ?: "21"
-
-val shortDescription = "1.21 Lightweight Minecraft server"
-
-allprojects {
-    apply(plugin = "java")
-
-    group = "net.minestom"
-    version = rootProject.version
-    description = shortDescription
-
-    repositories {
-        mavenLocal()
-        mavenCentral()
-    }
-
-    configurations.all {
-        // We only use Jetbrains Annotations
-        exclude("org.checkerframework", "checker-qual")
-    }
-
-    java {
-        withSourcesJar()
-        withJavadocJar()
-
-        toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
-    }
-
-    tasks.withType<Zip> {
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    }
-
-    tasks.withType<Test> {
-        useJUnitPlatform()
-
-        // Viewable packets make tracking harder. Could be re-enabled later.
-        jvmArgs("-Dminestom.viewable-packet=false")
-        jvmArgs("-Dminestom.inside-test=true")
-        minHeapSize = "512m"
-        maxHeapSize = "1024m"
-    }
-
-    tasks.withType<JavaCompile> {
-        options.encoding = "UTF-8"
-    }
+    alias(libs.plugins.nmcp.aggregation)
 }
 
 sourceSets {
@@ -61,25 +14,31 @@ sourceSets {
         }
         blossom {
             javaSources {
-
-                val gitCommit = System.getenv("GITHUB_SHA")
-                val gitBranch = System.getenv("GITHUB_REF")
-                val group = project.group as String?
-                val artifact = project.name
-                property("COMMIT", gitCommit ?: "LOCAL")
-                property("BRANCH", gitBranch ?: "LOCAL")
-                property("GROUP", group ?: "UNKNOWN")
-                property("ARTIFACT", artifact ?: "UNKNOWN")
+                property("COMMIT", System.getenv("GITHUB_SHA") ?: "LOCAL")
+                property("BRANCH", System.getenv("GITHUB_REF") ?: "LOCAL")
+                property("GROUP", project.group.toString())
+                property("ARTIFACT", project.name)
+                property("VERSION", project.version.toString())
             }
         }
     }
 }
 
+tasks.register<Task>("determineMinecraftVersion") {
+    outputs.upToDateWhen { false } // Never cache
+
+    doLast {
+        val minestomDataVersion = libs.minestomData.get().version
+        if (minestomDataVersion == null || "-" !in minestomDataVersion)
+            throw IllegalStateException("Unable to determine Minecraft version from minestomData dependency")
+        println(minestomDataVersion.split("-")[0])
+    }
+}
+
 dependencies {
     // Core dependencies
-    api(libs.slf4j)
-    api(libs.jetbrainsAnnotations)
     api(libs.bundles.adventure)
+    implementation(libs.slf4j)
     implementation(libs.minestomData)
 
     // Performance/data structures
@@ -88,34 +47,26 @@ dependencies {
     api(libs.gson)
     implementation(libs.jcTools)
 
-    // Testing
-    testImplementation(libs.bundles.junit)
-    testImplementation(project(":minestom:testing"))
+    testImplementation(project("minestom:testing"))
 }
 
-tasks {
-    jar {
-        manifest {
-            attributes("Automatic-Module-Name" to "net.minestom.server")
-        }
-    }
-    withType<Javadoc> {
-        (options as? StandardJavadocDocletOptions)?.apply {
-            encoding = "UTF-8"
-
-            // Custom options
-            addBooleanOption("html5", true)
-            addStringOption("-release", javaVersion)
-            // Links to external javadocs
-            links("https://docs.oracle.com/en/java/javase/${javaVersion}/docs/api/")
-            links("https://javadoc.io/doc/net.kyori/adventure-api/${libs.versions.adventure.get()}/")
-        }
+tasks.jar {
+    manifest {
+        attributes("Automatic-Module-Name" to "net.minestom.server")
     }
 }
 
-// Optional: To ensure it's built and installed locally with a single command
-tasks.register("publishToMavenLocalAndBuild") {
-    dependsOn("publishToMavenLocal") // Use dependsOn() with string for task names
-    // Add any other tasks needed, like "build" if it's not a direct dependency
-    // For example: dependsOn("build", "publishToMavenLocal")
+// Publishing configuration below
+
+nmcpAggregation {
+    centralPortal {
+        username = System.getenv("SONATYPE_USERNAME")
+        password = System.getenv("SONATYPE_PASSWORD")
+        publishingType = "AUTOMATIC"
+    }
+}
+
+dependencies {
+    nmcpAggregation(rootProject)
+    nmcpAggregation(project(":testing"))
 }
