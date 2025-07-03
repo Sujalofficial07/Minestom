@@ -1,9 +1,8 @@
 plugins {
     id("minestom.java-library")
     id("minestom.publishing")
-    alias(libs.plugins.blossom)
 
-    alias(libs.plugins.nmcp.aggregation)
+    alias(libs.plugins.blossom)
 }
 
 sourceSets {
@@ -47,7 +46,7 @@ dependencies {
     api(libs.gson)
     implementation(libs.jcTools)
 
-    testImplementation(project("minestom:testing"))
+    //testImplementation(project(":minestom:testing"))
 }
 
 tasks.jar {
@@ -56,17 +55,10 @@ tasks.jar {
     }
 }
 
-// Publishing configuration below
-
-nmcpAggregation {
-    centralPortal {
-        username = System.getenv("SONATYPE_USERNAME")
-        password = System.getenv("SONATYPE_PASSWORD")
-        publishingType = "AUTOMATIC"
+java {
+    toolchain {
+        languageVersion = (JavaLanguageVersion.of(21))
+        sourceCompatibility = JavaVersion.VERSION_21
     }
 }
 
-dependencies {
-    nmcpAggregation(rootProject)
-    nmcpAggregation(project(":testing"))
-}

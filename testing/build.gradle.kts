@@ -12,3 +12,9 @@ dependencies {
     runtimeOnly(libs.junit.engine)
     runtimeOnly(libs.junit.suite.engine)
 }
+
+java {
+    toolchain {
+        languageVersion = (JavaLanguageVersion.of(21))
+    }
+}

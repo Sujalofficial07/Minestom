@@ -4,8 +4,6 @@ plugins {
     id("com.gradleup.shadow")
 }
 
-val javaVersion = System.getenv("JAVA_VERSION") ?: "21"
-
 group = "net.minestom"
 
 repositories {
@@ -13,7 +11,7 @@ repositories {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
 }
 
 tasks.withType<JavaCompile> {
