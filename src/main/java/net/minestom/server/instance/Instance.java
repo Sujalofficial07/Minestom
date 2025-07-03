@@ -189,10 +189,9 @@ public abstract class Instance implements Block.Getter, Block.Setter,
     public CompletableFuture<Void> ensureSetBlockAsync(@NotNull Point point, @NotNull Block block) {
         var chunk = getChunkAt(point);
         if (chunk == null || !chunk.isLoaded()) {
-            return loadChunk(point).thenAccept(c -> {
-                c.setBlock(point, block);
-            });
+            return loadChunk(point).thenAccept(c -> c.setBlock(point, block));
         }
+        chunk.setBlock(point, block);
         return CompletableFuture.completedFuture(null);
     }
 
