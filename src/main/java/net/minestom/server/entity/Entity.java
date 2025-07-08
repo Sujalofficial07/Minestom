@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.event.HoverEvent.ShowEntity;
 import net.kyori.adventure.text.event.HoverEventSource;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.*;
 import net.minestom.server.collision.*;
 import net.minestom.server.component.DataComponent;
@@ -39,6 +40,9 @@ import net.minestom.server.potion.Potion;
 import net.minestom.server.potion.PotionEffect;
 import net.minestom.server.potion.TimedPotion;
 import net.minestom.server.registry.RegistryData;
+import net.minestom.server.scoreboard.Team;
+import net.minestom.server.scoreboard.TeamBuilder;
+import net.minestom.server.scoreboard.TeamManager;
 import net.minestom.server.snapshot.EntitySnapshot;
 import net.minestom.server.snapshot.SnapshotImpl;
 import net.minestom.server.snapshot.SnapshotUpdater;
@@ -846,6 +850,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
                     player.sendPackets(instance.getWeather().createWeatherPackets());
                 }
                 instance.getEntityTracker().register(this, spawnPosition, trackingTarget, trackingUpdate);
+
+                if (colorTeam != null)
+                    colorTeam.addMember(getUuid().toString());
                 if (callSpawn)
                     spawn();
                 EventDispatcher.call(new EntitySpawnEvent(this, instance));
@@ -1174,6 +1181,19 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      */
     public void setGlowing(boolean glowing) {
         this.entityMeta.setHasGlowingEffect(glowing);
+    }
+
+    private Team colorTeam = null;
+
+    /**
+     * Setups teams for the glow color
+     * @param rgbLike the color
+     */
+    public void setGlowColor(NamedTextColor rgbLike) {
+        colorTeam = new TeamBuilder(getUuid().toString(), new TeamManager()).teamColor(rgbLike).build();
+        if (instance != null && !isRemoved()) {
+            colorTeam.addMember(getUuid().toString());
+        }
     }
 
     /**
