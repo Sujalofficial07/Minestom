@@ -354,7 +354,8 @@ public sealed interface EventNode<T extends Event> permits EventNodeImpl {
     void unmap(@NotNull Object value);
 
     @ApiStatus.Experimental
-    void register(@NotNull EventBinding<? extends T> binding);
+    @Contract(value = "_ -> this")
+    @NotNull EventNode<T> register(@NotNull EventBinding<? extends T> binding);
 
     @ApiStatus.Experimental
     void unregister(@NotNull EventBinding<? extends T> binding);

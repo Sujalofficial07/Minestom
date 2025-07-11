@@ -186,7 +186,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
     }
 
     @Override
-    public void register(@NotNull EventBinding<? extends T> binding) {
+    public @NotNull EventNode<T> register(@NotNull EventBinding<? extends T> binding) {
         synchronized (GLOBAL_CHILD_LOCK) {
             for (var eventType : binding.eventTypes()) {
                 ListenerEntry<T> entry = getEntry((Class<? extends T>) eventType);
@@ -194,6 +194,7 @@ non-sealed class EventNodeImpl<T extends Event> implements EventNode<T> {
                 if (added) invalidateEvent((Class<? extends T>) eventType);
             }
         }
+        return this;
     }
 
     @Override

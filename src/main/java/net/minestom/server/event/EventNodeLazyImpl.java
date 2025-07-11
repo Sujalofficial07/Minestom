@@ -59,10 +59,11 @@ final class EventNodeLazyImpl<E extends Event> extends EventNodeImpl<E> {
         return (EventNode<E1>) this;
     }
 
+    @NotNull
     @Override
-    public void register(@NotNull EventBinding<? extends E> binding) {
+    public EventNode<E> register(@NotNull EventBinding<? extends E> binding) {
         ensureMap();
-        super.register(binding);
+        return super.register(binding);
     }
 
     private void ensureMap() {
