@@ -302,7 +302,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         return this.entityMeta;
     }
 
-    @SuppressWarnings("unchecked") @Override
+    @SuppressWarnings("unchecked")
+    @Override
     public <T> @Nullable T get(@NotNull DataComponent<T> component) {
         if (component == DataComponents.CUSTOM_DATA)
             return (T) tagHandler.asCompound();
@@ -842,6 +843,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         if (event.isCancelled()) return null; // TODO what to return?
 
         if (previousInstance != null) removeFromInstance(previousInstance);
+        if (this instanceof Player player) instance.bossBars().forEach(player::showBossBar);
         new EventsJFR.InstanceJoin(getUuid().toString(), instance.toString()).commit();
 
         this.isActive = true;
@@ -891,6 +893,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
 
     private void removeFromInstance(Instance instance) {
         EventDispatcher.call(new RemoveEntityFromInstanceEvent(instance, this));
+        if (this instanceof Player player) instance.bossBars().forEach(player::hideBossBar);
         instance.getEntityTracker().unregister(this, trackingTarget, trackingUpdate);
         this.viewEngine.forManuals(this::removeViewer);
         new EventsJFR.InstanceLeave(getUuid().toString(), instance.getUuid().toString()).commit();
