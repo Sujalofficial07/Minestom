@@ -111,7 +111,7 @@ final class ServerProcessImpl implements ServerProcess {
 
     private final Server server;
 
-    private final ThreadDispatcher<Chunk> dispatcher;
+    private final ThreadDispatcher<Chunk, Entity> dispatcher;
     private final Ticker ticker;
 
     private final AtomicBoolean started = new AtomicBoolean();
@@ -164,7 +164,7 @@ final class ServerProcessImpl implements ServerProcess {
 
         this.server = new Server(packetParser);
 
-        this.dispatcher = ThreadDispatcher.of(ThreadProvider.counter(), ServerFlag.DISPATCHER_THREADS);
+        this.dispatcher = ThreadDispatcher.dispatcher(ThreadProvider.counter(), ServerFlag.DISPATCHER_THREADS);
         this.ticker = new TickerImpl();
     }
 
@@ -359,7 +359,7 @@ final class ServerProcessImpl implements ServerProcess {
     }
 
     @Override
-    public @NotNull ThreadDispatcher<Chunk> dispatcher() {
+    public @NotNull ThreadDispatcher<Chunk, Entity> dispatcher() {
         return dispatcher;
     }
 
