@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.nmcp)
 }
 
+val javaVersion = System.getenv("JAVA_VERSION") ?: "21"
+
 group = "net.minestom"
 version = System.getenv("MINESTOM_VERSION") ?: "dev"
 
@@ -27,7 +29,8 @@ dependencies {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+    modularity.inferModulePath = true
 
     withSourcesJar()
     withJavadocJar()
@@ -43,9 +46,9 @@ tasks.withType<Javadoc> {
 
         // Custom options
         addBooleanOption("html5", true)
-        addStringOption("-release", "21")
+        addStringOption("-release", javaVersion)
         // Links to external javadocs
-        links("https://docs.oracle.com/en/java/javase/${21}/docs/api/")
+        links("https://docs.oracle.com/en/java/javase/${javaVersion}/docs/api/")
         links("https://javadoc.io/doc/net.kyori/adventure-api/${libs.versions.adventure.get()}/")
     }
 }
