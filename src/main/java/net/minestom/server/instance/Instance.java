@@ -392,6 +392,19 @@ public abstract class Instance implements Block.Getter, Block.Setter,
     public abstract void setGenerator(@Nullable Generator generator);
 
     /**
+     * Runs the provided {@link Generator} to generate a chunk at the given position.
+     * <p>
+     * Loads the chunk if not already loaded.
+     *
+     * @param chunkX    the chunk X
+     * @param chunkZ    the chunk Z
+     * @param generator the generator to use
+     * @return a future called once the generation is complete
+     */
+    @ApiStatus.Experimental
+    public abstract CompletableFuture<Void> generateChunk(int chunkX, int chunkZ, Generator generator);
+
+    /**
      * Gets all the instance's loaded chunks.
      *
      * @return an unmodifiable containing all the instance chunks
@@ -900,6 +913,7 @@ public abstract class Instance implements Block.Getter, Block.Setter,
 
     /**
      * Gets the chunk view distance of this instance, which defaults to {@link ServerFlag#CHUNK_VIEW_DISTANCE}.
+     *
      * @return The chunk view distance of this instance
      */
     public int viewDistance() {
@@ -908,6 +922,7 @@ public abstract class Instance implements Block.Getter, Block.Setter,
 
     /**
      * Sets the chunk view distance of this instance
+     *
      * @param newViewDistance the new view distance
      */
     public void viewDistance(int newViewDistance) {
