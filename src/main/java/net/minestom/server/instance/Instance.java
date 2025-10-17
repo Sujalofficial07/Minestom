@@ -197,14 +197,14 @@ public abstract class Instance implements Block.Getter, Block.Setter,
 
     public abstract void setBlock(int x, int y, int z, Block block, boolean doBlockUpdates);
 
-    public CompletableFuture<Void> ensureSetBlockAsync(@NotNull Point point, @NotNull Block block) {
+    public CompletableFuture<Void> ensureSetBlockAsync(Point point, Block block) {
         if (!isChunkLoaded(point)) {
             return loadChunk(point).thenAccept(c -> c.setBlock(point, block));
         }
         setBlock(point, block);
         return CompletableFuture.completedFuture(null);
     }
-    public CompletableFuture<Block> ensureGetBlockAsync(@NotNull Point point) {
+    public CompletableFuture<Block> ensureGetBlockAsync(Point point) {
         if (!isChunkLoaded(point)) {
             return loadChunk(point).thenApply(c -> c.getBlock(point));
         }

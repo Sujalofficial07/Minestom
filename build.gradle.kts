@@ -56,8 +56,8 @@ tasks.jar {
 
 java {
     toolchain {
-        languageVersion = (JavaLanguageVersion.of(21))
-        sourceCompatibility = JavaVersion.VERSION_21
+        languageVersion = (JavaLanguageVersion.of(25))
+        sourceCompatibility = JavaVersion.VERSION_25
     }
 }
 
