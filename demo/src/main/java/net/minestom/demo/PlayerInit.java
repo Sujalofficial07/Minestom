@@ -1,17 +1,21 @@
 package net.minestom.demo;
 
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.minestom.demo.entity.PlayerEntity;
 import net.minestom.server.FeatureFlag;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.advancements.FrameType;
 import net.minestom.server.advancements.Notification;
 import net.minestom.server.adventure.MinestomAdventure;
 import net.minestom.server.adventure.audience.Audiences;
-import net.minestom.server.color.AlphaColor;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
+import net.minestom.server.dialog.*;
 import net.minestom.server.entity.*;
 import net.minestom.server.entity.damage.Damage;
 import net.minestom.server.event.Event;
@@ -27,21 +31,27 @@ import net.minestom.server.instance.InstanceManager;
 import net.minestom.server.instance.LightingChunk;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
+import net.minestom.server.instance.block.BlockHandler;
+import net.minestom.server.instance.block.predicate.BlockPredicate;
 import net.minestom.server.inventory.Inventory;
 import net.minestom.server.inventory.InventoryType;
 import net.minestom.server.inventory.PlayerInventory;
 import net.minestom.server.item.ItemAnimation;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
+import net.minestom.server.item.component.BlockPredicates;
 import net.minestom.server.item.component.Consumable;
 import net.minestom.server.monitoring.BenchmarkManager;
 import net.minestom.server.monitoring.TickMonitor;
 import net.minestom.server.network.packet.server.common.CustomReportDetailsPacket;
 import net.minestom.server.network.packet.server.common.ServerLinksPacket;
+import net.minestom.server.network.packet.server.play.TrackedWaypointPacket;
 import net.minestom.server.sound.SoundEvent;
+import net.minestom.server.utils.Either;
 import net.minestom.server.utils.MathUtils;
 import net.minestom.server.utils.time.TimeUnit;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -108,12 +118,14 @@ public class PlayerInit {
                 final Player player = event.getPlayer();
                 player.setGameMode(GameMode.CREATIVE);
                 player.setPermissionLevel(4);
-//                ItemStack itemStack = ItemStack.builder(Material.STONE)
-//                        .amount(64)
-//                        .set(DataComponents.CAN_PLACE_ON, new BlockPredicates(new BlockPredicate(new BlockTypeFilter.Blocks(Block.STONE), null, null)))
-//                        .set(DataComponents.CAN_BREAK, new BlockPredicates(new BlockPredicate(new BlockTypeFilter.Blocks(Block.DIAMOND_ORE), null, null)))
-//                        .build();
-//                player.getInventory().addItemStack(itemStack);
+
+                player.sendMessage(Component.text("click me for less health").clickEvent(ClickEvent.runCommand("health set 2")));
+                ItemStack itemStack = ItemStack.builder(Material.STONE)
+                        .amount(64)
+                        .set(DataComponents.CAN_PLACE_ON, new BlockPredicates(new BlockPredicate(Block.STONE)))
+                        .set(DataComponents.CAN_BREAK, new BlockPredicates(new BlockPredicate(Block.DIAMOND_ORE)))
+                        .build();
+                player.getInventory().addItemStack(itemStack);
 
                 player.sendPacket(new CustomReportDetailsPacket(Map.of(
                         "hello", "world"
@@ -136,8 +148,6 @@ public class PlayerInit {
 
                 PlayerInventory inventory = event.getPlayer().getInventory();
                 inventory.addItemStack(getFoodItem(20));
-                inventory.addItemStack(getFoodItem(10000));
-                inventory.addItemStack(getFoodItem(Integer.MAX_VALUE));
                 inventory.addItemStack(ItemStack.of(Material.PURPLE_BED));
 
                 if (event.isFirstSpawn()) {
@@ -149,8 +159,79 @@ public class PlayerInit {
 
                     player.playSound(Sound.sound(SoundEvent.ENTITY_EXPERIENCE_ORB_PICKUP, Sound.Source.PLAYER, 0.5f, 1f));
 
-                    player.sendMessage(Component.text("Hello shadow").shadowColor(new AlphaColor(0xFFFF0000)));
+                    var happyGhast = new LivingEntity(EntityType.HAPPY_GHAST);
+                    happyGhast.setNoGravity(true);
+                    happyGhast.setBodyEquipment(ItemStack.of(Material.GREEN_HARNESS));
+                    happyGhast.setInstance(player.getInstance(), new Pos(10, 43, 5, 45, 0));
+                    player.sendPacket(new TrackedWaypointPacket(TrackedWaypointPacket.Operation.TRACK, new TrackedWaypointPacket.Waypoint(
+                            Either.left(happyGhast.getUuid()),
+                            TrackedWaypointPacket.Icon.DEFAULT,
+                            new TrackedWaypointPacket.Target.Vec3i(happyGhast.getPosition())
+                    )));
+
+                    var playerEntity = new PlayerEntity();
+                    playerEntity.setInstance(player.getInstance(), new Pos(-2.5, 40, 6.7, -163, 0));
+                    player.sendPacket(new TrackedWaypointPacket(TrackedWaypointPacket.Operation.TRACK, new TrackedWaypointPacket.Waypoint(
+                            Either.left(playerEntity.getUuid()),
+                            TrackedWaypointPacket.Icon.DEFAULT,
+                            new TrackedWaypointPacket.Target.Vec3i(playerEntity.getPosition())
+                    )));
                 }
+            })
+            .addListener(PlayerChatEvent.class, event -> {
+                var dialog = new Dialog.MultiAction(
+                        new DialogMetadata(
+                                Component.text("Are you sure you want to confirm?Are you sure you want to confirm?Are you sure you want to confirm?Are you sure you want to confirm?Are you sure you want to confirm?Are you sure you want to confirm?Are you sure you want to confirm?Are you sure you want to confirm?Are you sure you want to confirm?Are you sure you want to confirm?Are you sure you want to confirm?").hoverEvent(HoverEvent.showText(Component.text("Hover text here"))),
+                                null, true, false,
+                                DialogAfterAction.CLOSE,
+                                List.of(
+                                        new DialogBody.PlainMessage(Component.text("plain message here").hoverEvent(HoverEvent.showText(Component.text("Hover text here"))), DialogBody.PlainMessage.DEFAULT_WIDTH),
+                                        new DialogBody.Item(ItemStack.of(Material.DIAMOND, 5),
+                                                new DialogBody.PlainMessage(Component.text("item message"), DialogBody.PlainMessage.DEFAULT_WIDTH),
+                                                false, true, 16, 16)
+                                ),
+                                List.of(
+                                        new DialogInput.Text("text", DialogInput.DEFAULT_WIDTH * 2, Component.text("Enter some text")
+                                                .hoverEvent(HoverEvent.showText(Component.text("Hover text here"))), true, "", Integer.MAX_VALUE, new DialogInput.Text.Multiline(15, null)),
+                                        new DialogInput.Boolean("bool", Component.text("Checkbox"), false, "true", "false"),
+                                        new DialogInput.SingleOption("single_option", DialogInput.DEFAULT_WIDTH, List.of(
+                                                new DialogInput.SingleOption.Option("option1", Component.text("Option 1"), true),
+                                                new DialogInput.SingleOption.Option("option2", Component.text("Option 2"), false),
+                                                new DialogInput.SingleOption.Option("option3", Component.text("Option 3"), false)
+                                        ), Component.text("Single option"), true),
+                                        new DialogInput.NumberRange("number_range", DialogInput.DEFAULT_WIDTH, Component.text("Number range"),
+                                                "options.generic_value", 0, 500, 250f, 1f),
+                                        new DialogInput.NumberRange("number_r2ange", DialogInput.DEFAULT_WIDTH, Component.text("Number range"),
+                                                "options.generic_value", 0, 500, 250f, 1f),
+                                        new DialogInput.NumberRange("number_r3ange", DialogInput.DEFAULT_WIDTH, Component.text("Number range"),
+                                                "options.generic_value", 0, 500, 250f, 1f),
+                                        new DialogInput.NumberRange("number_r4ange", DialogInput.DEFAULT_WIDTH, Component.text("Number range"),
+                                                "options.generic_value", 0, 500, 250f, 1f),
+                                        new DialogInput.NumberRange("number_r5ange", DialogInput.DEFAULT_WIDTH, Component.text("Number range"),
+                                                "options.generic_value", 0, 500, 250f, 1f),
+                                        new DialogInput.NumberRange("number_r6ange", DialogInput.DEFAULT_WIDTH, Component.text("Number range"),
+                                                "options.generic_value", 0, 500, 250f, 1f)
+                                )
+                        ),
+                        List.of(
+                                new DialogActionButton(Component.text("Done"), null, DialogActionButton.DEFAULT_WIDTH, new DialogAction.DynamicCustom(Key.key("done_action"), null)),
+                                new DialogActionButton(Component.text("Done"), null, DialogActionButton.DEFAULT_WIDTH, null)
+                        ),
+                        null, 2
+                );
+
+                event.getPlayer().sendMessage(Component.text("Click for dialog!").clickEvent(ClickEvent.showDialog(dialog)));
+            })
+            .addListener(PlayerCustomClickEvent.class, event -> {
+                String payload = "null";
+                if (event.getPayload() != null) {
+                    try {
+                        payload = MinestomAdventure.tagStringIO().asString(event.getPayload());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                System.out.println(event.getKey() + " -> " + payload);
             })
             .addListener(PlayerPacketOutEvent.class, event -> {
                 //System.out.println("out " + event.getPacket().getClass().getSimpleName());
@@ -166,7 +247,7 @@ public class PlayerInit {
                 if (block.getProperty("part") == null || block.getProperty("facing") == null) return;
                 var isHead = "head".equals(block.getProperty("part"));
                 var facing = BlockFace.valueOf(block.getProperty("facing").toUpperCase());
-                var other = (isHead ? pos.add(facing.getOppositeFace().toDirection().vec().asPosition()) : pos.add(facing.toDirection().vec().asPosition()));
+                var other = (isHead ? pos.add(facing.getOppositeFace().toDirection().vec().asPos()) : pos.add(facing.toDirection().vec().asPos()));
                 var otherBlock = instance.getBlock(other);
                 if (otherBlock.id() == block.id()) {
                     instance.setBlock(other, Block.AIR);
@@ -181,7 +262,7 @@ public class PlayerInit {
                     if (block.getProperty("part") == null || block.getProperty("facing") == null) return;
                     var isHead = "head".equals(block.getProperty("part"));
                     var facing = BlockFace.valueOf(block.getProperty("facing").toUpperCase());
-                    var other = (isHead ? pos.add(facing.getOppositeFace().toDirection().vec().asPosition()) : pos.add(facing.toDirection().vec().asPosition()));
+                    var other = (isHead ? pos.add(facing.getOppositeFace().toDirection().vec().asPos()) : pos.add(facing.toDirection().vec().asPos()));
                     var otherBlock = instance.getBlock(other);
                     if (otherBlock.id() == block.id()) {
                         player.setVelocity(Vec.ZERO);
@@ -259,6 +340,18 @@ public class PlayerInit {
                 } else if (event.getClickedItem().material() == Material.ENCHANTED_GOLDEN_APPLE) {
                     event.setCancelled(true);
                 }
+            })
+            .addListener(PlayerBlockPlaceEvent.class, event -> {
+                Block block = event.getBlock();
+                BlockHandler handler = block.handler();
+                if (handler != null) return;
+                event.setBlock(event.getBlock().withHandler(MinecraftServer.getBlockManager().getHandler(block.key().asString())));
+            })
+            .addListener(PlayerEditSignEvent.class, event -> {
+                event.getLines()
+                        .stream()
+                        .map(Component::text)
+                        .forEach(comp -> event.getPlayer().sendMessage(comp));
             });
 
     {

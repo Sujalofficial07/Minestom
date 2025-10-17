@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.nmcp)
 }
 
+val javaVersion = System.getenv("JAVA_VERSION") ?: "25"
+
 group = "net.minestom"
 version = System.getenv("MINESTOM_VERSION") ?: "dev"
 
@@ -27,7 +29,8 @@ dependencies {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+    modularity.inferModulePath = true
 
     withSourcesJar()
     withJavadocJar()
@@ -43,10 +46,18 @@ tasks.withType<Javadoc> {
 
         // Custom options
         addBooleanOption("html5", true)
-        addStringOption("-release", "21")
+        addStringOption("-release", javaVersion)
         // Links to external javadocs
-        links("https://docs.oracle.com/en/java/javase/${21}/docs/api/")
-        links("https://javadoc.io/doc/net.kyori/adventure-api/${libs.versions.adventure.get()}/")
+        links("https://docs.oracle.com/en/java/javase/${javaVersion}/docs/api/")
+        links("https://jd.advntr.dev/api/${libs.versions.adventure.get()}/")
+        links("https://jd.advntr.dev/nbt/${libs.versions.adventure.get()}/")
+        links("https://jd.advntr.dev/key/${libs.versions.adventure.get()}/")
+        links("https://jd.advntr.dev/text-serializer-ansi/${libs.versions.adventure.get()}/")
+        links("https://jd.advntr.dev/text-serializer-gson/${libs.versions.adventure.get()}/")
+        links("https://jd.advntr.dev/text-serializer-legacy/${libs.versions.adventure.get()}/")
+        links("https://jd.advntr.dev/text-serializer-plain/${libs.versions.adventure.get()}/")
+        links("https://javadoc.io/doc/com.google.code.gson/gson/${libs.versions.gson.get()}/")
+        links("https://javadoc.io/doc/org.jetbrains/annotations/${libs.versions.jetbrainsAnnotations.get()}/")
     }
 }
 
@@ -56,6 +67,7 @@ tasks.withType<Test> {
     // Viewable packets make tracking harder. Could be re-enabled later.
     jvmArgs("-Dminestom.viewable-packet=false")
     jvmArgs("-Dminestom.inside-test=true")
+    jvmArgs("-Dminestom.acquirable-strict=true")
     minHeapSize = "512m"
     maxHeapSize = "1024m"
 }
