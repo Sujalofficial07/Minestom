@@ -20,6 +20,7 @@ public class ArgumentWord extends Argument<String> {
     public static final int SPACE_ERROR = 1;
     public static final int RESTRICTION_ERROR = 2;
 
+    @Nullable
     protected String[] restrictions;
 
     public ArgumentWord(String id) {
@@ -38,11 +39,9 @@ public class ArgumentWord extends Argument<String> {
      * @throws NullPointerException if {@code restrictions} is not null but contains null value(s)
      */
     public ArgumentWord from(@Nullable String... restrictions) {
-        if (restrictions != null) {
-            for (String restriction : restrictions) {
-                Check.notNull(restriction,
-                        "ArgumentWord restriction cannot be null, you can pass 'null' instead of an empty array");
-            }
+        for (String restriction : restrictions) {
+            Check.notNull(restriction,
+                    "ArgumentWord restriction cannot be null, you can pass 'null' instead of an empty array");
         }
 
         this.restrictions = restrictions;
@@ -56,7 +55,7 @@ public class ArgumentWord extends Argument<String> {
 
         // Check restrictions (acting as literal)
         if (hasRestrictions()) {
-            for (String r : restrictions) {
+            for (String r : getRestrictions()) {
                 if (input.equals(r))
                     return input;
             }
@@ -82,7 +81,8 @@ public class ArgumentWord extends Argument<String> {
      * @return true if the word selection is restricted
      */
     public boolean hasRestrictions() {
-        return restrictions != null && restrictions.length > 0;
+        var res = getRestrictions();
+        return res != null && res.length > 0;
     }
 
     /**

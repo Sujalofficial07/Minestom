@@ -128,6 +128,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
             .resolving(Identity.NAME, Player::getUsername)
             .resolving(Identity.DISPLAY_NAME, Player::getDisplayName)
             .resolving(Identity.LOCALE, Player::getLocale)
+            .resolving(Identity.UUID, Player::getUuid)
             .build();
 
     // This probably should be configurable (eg an instance field). However I(matt) am unclear
