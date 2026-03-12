@@ -47,6 +47,8 @@ sealed interface EntityTypes permits EntityType {
 
     EntityType CAMEL = EntityTypeImpl.get("camel");
 
+    EntityType CAMEL_HUSK = EntityTypeImpl.get("camel_husk");
+
     EntityType CAT = EntityTypeImpl.get("cat");
 
     EntityType CAVE_SPIDER = EntityTypeImpl.get("cave_spider");
@@ -60,6 +62,8 @@ sealed interface EntityTypes permits EntityType {
     EntityType CHICKEN = EntityTypeImpl.get("chicken");
 
     EntityType COD = EntityTypeImpl.get("cod");
+
+    EntityType COPPER_GOLEM = EntityTypeImpl.get("copper_golem");
 
     EntityType COMMAND_BLOCK_MINECART = EntityTypeImpl.get("command_block_minecart");
 
@@ -169,6 +173,8 @@ sealed interface EntityTypes permits EntityType {
 
     EntityType MANGROVE_CHEST_BOAT = EntityTypeImpl.get("mangrove_chest_boat");
 
+    EntityType MANNEQUIN = EntityTypeImpl.get("mannequin");
+
     EntityType MARKER = EntityTypeImpl.get("marker");
 
     EntityType MINECART = EntityTypeImpl.get("minecart");
@@ -176,6 +182,8 @@ sealed interface EntityTypes permits EntityType {
     EntityType MOOSHROOM = EntityTypeImpl.get("mooshroom");
 
     EntityType MULE = EntityTypeImpl.get("mule");
+
+    EntityType NAUTILUS = EntityTypeImpl.get("nautilus");
 
     EntityType OAK_BOAT = EntityTypeImpl.get("oak_boat");
 
@@ -192,6 +200,8 @@ sealed interface EntityTypes permits EntityType {
     EntityType PALE_OAK_CHEST_BOAT = EntityTypeImpl.get("pale_oak_chest_boat");
 
     EntityType PANDA = EntityTypeImpl.get("panda");
+
+    EntityType PARCHED = EntityTypeImpl.get("parched");
 
     EntityType PARROT = EntityTypeImpl.get("parrot");
 
@@ -300,6 +310,8 @@ sealed interface EntityTypes permits EntityType {
     EntityType ZOMBIE = EntityTypeImpl.get("zombie");
 
     EntityType ZOMBIE_HORSE = EntityTypeImpl.get("zombie_horse");
+
+    EntityType ZOMBIE_NAUTILUS = EntityTypeImpl.get("zombie_nautilus");
 
     EntityType ZOMBIE_VILLAGER = EntityTypeImpl.get("zombie_villager");
 

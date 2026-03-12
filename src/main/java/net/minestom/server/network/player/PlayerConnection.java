@@ -7,6 +7,7 @@ import net.minestom.server.crypto.PlayerPublicKey;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.EventDispatcher;
+import net.minestom.server.event.player.OutgoingTransferEvent;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.monitoring.EventsJFR;
 import net.minestom.server.network.ConnectionState;
@@ -15,6 +16,7 @@ import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.common.CookieRequestPacket;
 import net.minestom.server.network.packet.server.common.CookieStorePacket;
 import net.minestom.server.network.packet.server.common.DisconnectPacket;
+import net.minestom.server.network.packet.server.common.TransferPacket;
 import net.minestom.server.network.packet.server.configuration.SelectKnownPacksPacket;
 import net.minestom.server.network.packet.server.login.LoginDisconnectPacket;
 import net.minestom.server.network.plugin.LoginPluginMessageProcessor;
@@ -36,9 +38,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class PlayerConnection {
     private Player player;
-    private volatile ConnectionState connectionState;
+
+    // Server & client states can differ during configuration.
+    // "server" state means the state the server thinks its in.
+    // "client" state means the state the client thinks its in.
+    // For example, after sending start configuration but before receiving the ack,
+    // the server will be in CONFIGURATION while the client is still in PLAY.
+    private volatile ConnectionState serverState, clientState;
+
     private PlayerPublicKey playerPublicKey;
     volatile boolean online;
+    private volatile boolean wasTransferred;
 
     private LoginPluginMessageProcessor loginPluginMessageProcessor = new LoginPluginMessageProcessor(this);
 
@@ -48,7 +58,8 @@ public abstract class PlayerConnection {
 
     public PlayerConnection() {
         this.online = true;
-        this.connectionState = ConnectionState.HANDSHAKE;
+        this.serverState = ConnectionState.HANDSHAKE;
+        this.clientState = ConnectionState.HANDSHAKE;
     }
 
     /**
@@ -127,7 +138,7 @@ public abstract class PlayerConnection {
     public void kick(Component component) {
         // Packet type depends on the current player connection state
         final ServerPacket disconnectPacket;
-        if (connectionState == ConnectionState.LOGIN) {
+        if (serverState == ConnectionState.LOGIN) {
             disconnectPacket = new LoginDisconnectPacket(component);
         } else {
             disconnectPacket = new DisconnectPacket(component);
@@ -144,7 +155,7 @@ public abstract class PlayerConnection {
         final Player player = MinecraftServer.getConnectionManager().getPlayer(this);
         if (player != null) {
             MinecraftServer.getConnectionManager().removePlayer(this);
-            if (connectionState == ConnectionState.PLAY && !player.isRemoved())
+            if (serverState == ConnectionState.PLAY && !player.isRemoved())
                 player.scheduleNextTick(Entity::remove);
             else {
                 EventDispatcher.call(new PlayerDisconnectEvent(player));
@@ -182,21 +193,34 @@ public abstract class PlayerConnection {
         return online;
     }
 
-    public void setConnectionState(ConnectionState connectionState) {
-        this.connectionState = connectionState;
-        if (connectionState == ConnectionState.CONFIGURATION) {
+    /**
+     * @deprecated Use {@link #getClientState()} or {@link #getServerState()} instead.
+     */
+    @Deprecated(forRemoval = true)
+    public ConnectionState getConnectionState() {
+        return getClientState();
+    }
+
+    public ConnectionState getServerState() {
+        return serverState;
+    }
+
+    public ConnectionState getClientState() {
+        return clientState;
+    }
+
+    public void setClientState(ConnectionState clientState) {
+        if (this.clientState == ConnectionState.HANDSHAKE)
+            this.serverState = clientState;
+        this.clientState = clientState;
+    }
+
+    public void setServerState(ConnectionState serverState) {
+        this.serverState = serverState;
+        if (serverState != ConnectionState.LOGIN) {
             // Clear the plugin request map (it is not used beyond login)
             this.loginPluginMessageProcessor = null;
         }
-    }
-
-    /**
-     * Gets the client connection state.
-     *
-     * @return the client connection state
-     */
-    public ConnectionState getConnectionState() {
-        return connectionState;
     }
 
     public PlayerPublicKey playerPublicKey() {
@@ -212,7 +236,7 @@ public abstract class PlayerConnection {
     }
 
     public CompletableFuture<byte @Nullable []> fetchCookie(String key) {
-        if (getConnectionState() == ConnectionState.CONFIGURATION && getPlayer() == null) {
+        if (serverState == ConnectionState.CONFIGURATION && getPlayer() == null) {
             // This is a bit of an unfortunate limitation. The player provider blocks the player read virtual
             // thread waiting for the player provider so a cookie response would never be received and the
             // process would deadlock.
@@ -260,10 +284,40 @@ public abstract class PlayerConnection {
         }
     }
 
+    /**
+     * Attempts to transfer the player to another server, using the {@link TransferPacket}.
+     *
+     * @param host the host, usually an IP or domain name.
+     * @param port the port, usually 25565.
+     */
+    public void transfer(String host, int port) {
+        OutgoingTransferEvent event = new OutgoingTransferEvent(this.player, host, port);
+        EventDispatcher.callCancellable(event, () -> this.sendPacket(new TransferPacket(event.getHost(), event.getPort())));
+    }
+
+    /**
+     * Returns whether the player has indicated that they were redirected from another server.
+     *
+     * @return true if the client marked itself as transferred, false otherwise
+     */
+    public boolean wasTransferred() {
+        return this.wasTransferred;
+    }
+
+    @ApiStatus.Internal
+    public void markTransferred(boolean wasTransferred) {
+        if (!wasTransferred && this.wasTransferred) {
+            throw new IllegalStateException("Cannot mark transferred connection as non-transferred");
+        }
+
+        this.wasTransferred = wasTransferred;
+    }
+
     @Override
     public String toString() {
         return "PlayerConnection{" +
-                "connectionState=" + connectionState +
+                "serverState=" + serverState +
+                ", clientState=" + clientState +
                 ", identifier=" + getIdentifier() +
                 '}';
     }

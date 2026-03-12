@@ -5,6 +5,7 @@ import net.kyori.adventure.key.KeyPattern;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.minestom.server.coordinate.Area;
 import net.minestom.server.coordinate.BlockVec;
+import net.minestom.server.codec.Codec;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.batch.Batch;
@@ -33,7 +34,11 @@ import java.util.function.BiPredicate;
  */
 public sealed interface Block extends StaticProtocolObject<Block>, TagReadable, Blocks permits BlockImpl {
 
-    NetworkBuffer.Type<Block> NETWORK_TYPE = NetworkBuffer.VAR_INT.transform(Block::fromStateId, Block::stateId);
+    NetworkBuffer.Type<Block> ID_NETWORK_TYPE = NetworkBuffer.VAR_INT.transform(Block::fromBlockId, Block::id);
+    NetworkBuffer.Type<Block> STATE_NETWORK_TYPE = NetworkBuffer.VAR_INT.transform(Block::fromStateId, Block::stateId);
+
+    Codec<Block> STATE_CODEC = Codec.STRING.transform(state -> Objects.requireNonNull(
+            Block.fromState(state), () -> "not a block state: " + state), Block::state);
 
     /**
      * Creates a new block with the the property {@code property} sets to {@code value}.

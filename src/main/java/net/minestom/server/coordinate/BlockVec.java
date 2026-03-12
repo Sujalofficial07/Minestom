@@ -284,6 +284,7 @@ public record BlockVec(int blockX, int blockY, int blockZ) implements Point {
         return blockX == blockVec.blockX && blockY == blockVec.blockY && blockZ == blockVec.blockZ;
     }
 
+
     @Contract(pure = true)
     public Vec asVec() {
         return new Vec(blockX, blockY, blockZ);

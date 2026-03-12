@@ -35,7 +35,7 @@ import net.minestom.server.coordinate.*;
 import net.minestom.server.dialog.Dialog;
 import net.minestom.server.entity.attribute.Attribute;
 import net.minestom.server.entity.metadata.LivingEntityMeta;
-import net.minestom.server.entity.metadata.PlayerMeta;
+import net.minestom.server.entity.metadata.avatar.PlayerMeta;
 import net.minestom.server.entity.vehicle.PlayerInputs;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.inventory.InventoryCloseEvent;
@@ -88,6 +88,7 @@ import net.minestom.server.utils.MathUtils;
 import net.minestom.server.utils.PacketSendingUtils;
 import net.minestom.server.utils.async.AsyncUtils;
 import net.minestom.server.utils.chunk.ChunkUpdateLimitChecker;
+import net.minestom.server.utils.collection.ConcurrentMessageQueues;
 import net.minestom.server.utils.identity.NamedAndIdentified;
 import net.minestom.server.utils.inventory.PlayerInventoryUtils;
 import net.minestom.server.utils.time.Cooldown;
@@ -96,7 +97,7 @@ import net.minestom.server.utils.validate.Check;
 import net.minestom.server.world.DimensionType;
 import net.minestom.server.worldevent.WorldEvent;
 import org.intellij.lang.annotations.MagicConstant;
-import org.jctools.queues.MpscArrayQueue;
+import org.jctools.queues.MessagePassingQueue;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
@@ -178,7 +179,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     private final AtomicInteger teleportId = new AtomicInteger();
     private int receivedTeleportId;
 
-    private final MpscArrayQueue<ClientPacket> packets = new MpscArrayQueue<>(ServerFlag.PLAYER_PACKET_QUEUE_SIZE);
+    private final MessagePassingQueue<ClientPacket> packets = ConcurrentMessageQueues.mpscArrayQueue(ServerFlag.PLAYER_PACKET_QUEUE_SIZE);
     private final boolean levelFlat;
     private ClientSettings settings = ClientSettings.DEFAULT;
     private float exp;
@@ -302,7 +303,10 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         // Difficulty
         sendPacket(new ServerDifficultyPacket(MinecraftServer.getDifficulty(), true));
 
-        sendPacket(new SpawnPositionPacket(respawnPoint, 0));
+        sendPacket(new SpawnPositionPacket(
+                new WorldPos(spawnInstance.getDimensionName(), respawnPoint),
+                respawnPoint.yaw(), respawnPoint.pitch()
+        ));
 
         // Reenable metadata notifications as we leave the configuration state
         metadata.setNotifyAboutChanges(true);
@@ -353,17 +357,17 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     }
 
     /**
-     * Moves the player immediately to the configuration state. The player is automatically moved
-     * to configuration upon finishing login, this method can be used to move them back to configuration
-     * after entering the play state.
+     * Moves the player to the configuration state at the end of the current tick.
+     *
+     * <p>The player is automatically moved to configuration upon finishing login, this method can be
+     * used to move them back to configuration after entering the play state.</p>
      *
      * <p>This will result in them being removed from the current instance, player list, etc.</p>
      */
     public void startConfigurationPhase() {
-        Check.stateCondition(playerConnection.getConnectionState() != ConnectionState.PLAY,
+        Check.stateCondition(playerConnection.getServerState() != ConnectionState.PLAY,
                 "Player must be in the play state for reconfiguration.");
-        // Remove the player, then send them back to configuration
-        remove(false);
+
         MinecraftServer.getConnectionManager().transitionPlayToConfig(this);
     }
 
@@ -566,7 +570,6 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
             EventsJFR.newPlayerLeave(getUuid()).commit();
         }
 
-
         final AbstractInventory currentInventory = getOpenInventory();
         if (currentInventory != null) currentInventory.removeViewer(this);
 
@@ -585,6 +588,8 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         final int chunkZ = position.chunkZ();
         // Clear all viewable chunks
         ChunkRange.chunksInRange(chunkX, chunkZ, this.effectiveViewDistance(), chunkRemover);
+        resetChunkQueue();
+
         // Remove from the tab-list
         PacketSendingUtils.broadcastPlayPacket(getRemovePlayerToList());
 
@@ -626,10 +631,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         final Consumer<Instance> runnable = (i) -> spawnPlayer(i, spawnPosition,
                 currentInstance == null, dimensionChange, true);
 
-        // Reset chunk queue state
-        needsChunkPositionSync = true;
-        targetChunksPerTick = 9f;
-        pendingChunkCount = 0f;
+        resetChunkQueue();
 
         // Ensure that surrounding chunks are loaded
         List<CompletableFuture<Chunk>> futures = new ArrayList<>();
@@ -728,7 +730,10 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
         synchronizePositionAfterTeleport(spawnPosition, Vec.ZERO, RelativeFlags.NONE, true); // So the player doesn't get stuck
 
         if (dimensionChange) {
-            sendPacket(new SpawnPositionPacket(spawnPosition, 0));
+            sendPacket(new SpawnPositionPacket(
+                    new WorldPos(instance.getDimensionName(), spawnPosition),
+                    spawnPosition.yaw(), spawnPosition.pitch()
+            ));
             sendPacket(instance.createInitializeWorldBorderPacket());
             sendPacket(instance.createTimePacket());
         }
@@ -807,6 +812,18 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
                 synchronizePositionAfterTeleport(getPosition(), Vec.ZERO, RelativeFlags.NONE, true);
                 needsChunkPositionSync = false;
             }
+        } finally {
+            chunkQueueLock.unlock();
+        }
+    }
+
+    private void resetChunkQueue() {
+        chunkQueueLock.lock();
+        try {
+            chunkQueue.clear();
+            needsChunkPositionSync = true;
+            targetChunksPerTick = 9f;
+            pendingChunkCount = 0f;
         } finally {
             chunkQueueLock.unlock();
         }
@@ -1547,11 +1564,11 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     public void refreshSettings(ClientSettings settings) {
         final ClientSettings previous = this.settings;
         this.settings = settings;
-        boolean isInPlayState = getPlayerConnection().getConnectionState() == ConnectionState.PLAY;
+        boolean isInPlayState = getPlayerConnection().getClientState() == ConnectionState.PLAY;
         PlayerMeta playerMeta = getPlayerMeta();
         if (isInPlayState) playerMeta.setNotifyAboutChanges(false);
         playerMeta.setDisplayedSkinParts(settings.displayedSkinParts());
-        playerMeta.setRightMainHand(settings.mainHand() == ClientSettings.MainHand.RIGHT);
+        playerMeta.setMainHand(settings.mainHand());
         if (isInPlayState) playerMeta.setNotifyAboutChanges(true);
 
         final byte previousViewDistance = previous.viewDistance();
@@ -2117,8 +2134,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     public void interpretPacketQueue() {
         final PacketListenerManager manager = MinecraftServer.getPacketListenerManager();
         // This method is NOT thread-safe
-        this.packets.drain(packet -> manager.processClientPacket(packet, playerConnection,
-                getPlayerConnection().getConnectionState()), ServerFlag.PLAYER_PACKET_PER_TICK);
+        this.packets.drain(packet -> manager.processClientPacket(packet, playerConnection), ServerFlag.PLAYER_PACKET_PER_TICK);
     }
 
     /**
@@ -2128,7 +2144,7 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
      */
     public void refreshLatency(int latency) {
         this.latency = latency;
-        if (getPlayerConnection().getConnectionState() == ConnectionState.PLAY) {
+        if (getPlayerConnection().getServerState() == ConnectionState.PLAY) {
             PacketSendingUtils.broadcastPlayPacket(new PlayerInfoUpdatePacket(PlayerInfoUpdatePacket.Action.UPDATE_LATENCY, infoEntry()));
         }
     }
@@ -2192,16 +2208,24 @@ public class Player extends LivingEntity implements CommandSender, HoverEventSou
     }
 
     public void refreshInput(boolean forward, boolean backward, boolean left, boolean right, boolean jump, boolean shift, boolean sprint) {
-        this.inputs.refresh(forward, backward, left, right, jump, shift, sprint);
+        boolean oldForward = this.inputs.forward();
+        boolean oldBackward = this.inputs.backward();
+        boolean oldLeft = this.inputs.left();
+        boolean oldRight = this.inputs.right();
+        boolean oldJump = this.inputs.jump();
+        boolean oldShift = this.inputs.shift();
+        boolean oldSprint = this.inputs.sprint();
 
-        boolean oldSneakingState = isSneaking();
-        setSneaking(shift);
-        if (oldSneakingState != shift) {
-            if (shift) {
-                EventDispatcher.call(new PlayerStartSneakingEvent(this));
-            } else {
-                EventDispatcher.call(new PlayerStopSneakingEvent(this));
-            }
+        this.inputs.refresh(forward, backward, left, right, jump, shift, sprint);
+        this.setSneaking(shift);
+
+        var event = new PlayerInputEvent(this, oldForward, oldBackward, oldLeft, oldRight, oldJump, oldShift, oldSprint);
+        EventDispatcher.call(event);
+
+        if (event.hasPressedShiftKey()) {
+            EventDispatcher.call(new PlayerStartSneakingEvent(this));
+        } else if (event.hasReleasedShiftKey()) {
+            EventDispatcher.call(new PlayerStopSneakingEvent(this));
         }
     }
 

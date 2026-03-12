@@ -25,12 +25,12 @@ import net.minestom.server.network.packet.client.login.ClientEncryptionResponseP
 import net.minestom.server.network.packet.client.login.ClientLoginAcknowledgedPacket;
 import net.minestom.server.network.packet.client.login.ClientLoginPluginResponsePacket;
 import net.minestom.server.network.packet.client.login.ClientLoginStartPacket;
-import net.minestom.server.network.packet.client.play.ClientConfigurationAckPacket;
 import net.minestom.server.network.packet.client.status.StatusRequestPacket;
 import net.minestom.server.network.packet.server.*;
 import net.minestom.server.network.packet.server.login.SetCompressionPacket;
+import net.minestom.server.utils.collection.ConcurrentMessageQueues;
 import net.minestom.server.utils.validate.Check;
-import org.jctools.queues.MpscUnboundedXaddArrayQueue;
+import org.jctools.queues.MessagePassingQueue;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -65,7 +65,6 @@ public class PlayerSocketConnection extends PlayerConnection {
             ClientEncryptionResponsePacket.class, // Auth request
             ClientLoginPluginResponsePacket.class,
             ClientSelectKnownPacksPacket.class, // Immediate answer to server request on config
-            ClientConfigurationAckPacket.class, // Handle config state
             ClientLoginAcknowledgedPacket.class, // Handle config state
             ClientFinishConfigurationPacket.class // Enter play state
     );
@@ -85,7 +84,7 @@ public class PlayerSocketConnection extends PlayerConnection {
     private int protocolVersion;
 
     private final NetworkBuffer readBuffer = NetworkBuffer.resizableBuffer(ServerFlag.POOLED_BUFFER_SIZE, MinecraftServer.process());
-    private final MpscUnboundedXaddArrayQueue<SendablePacket> packetQueue = new MpscUnboundedXaddArrayQueue<>(1024);
+    private final MessagePassingQueue<SendablePacket> packetQueue = ConcurrentMessageQueues.mpscUnboundedArrayQueue(1024);
     private final Thread readThread, writeThread;
 
     private final AtomicLong sentPacketCounter = new AtomicLong();
@@ -125,8 +124,7 @@ public class PlayerSocketConnection extends PlayerConnection {
     }
 
     private void processPackets(NetworkBuffer readBuffer, PacketParser<ClientPacket> packetParser) {
-        // Read all packets
-        final ConnectionState startingState = getConnectionState();
+        final ConnectionState startingState = getClientState();
         final PacketReading.Result<ClientPacket> result;
         try {
             result = PacketReading.readPackets(
@@ -145,19 +143,11 @@ public class PlayerSocketConnection extends PlayerConnection {
                 for (PacketReading.ParsedPacket<ClientPacket> parsedPacket : success.packets()) {
                     final ClientPacket packet = parsedPacket.packet();
 
-                    // Update connection state 'as we receive' the packet, aka before we send any responses
-                    // from processing. This is important for disconnection during start of handshake.
-                    final ConnectionState currState = getConnectionState();
-                    final ConnectionState nextState = parsedPacket.nextState();
-                    if (nextState != currState) {
-                        setConnectionState(nextState);
-                    }
-
                     try {
                         final boolean processImmediately = IMMEDIATE_PROCESS_PACKETS.contains(packet.getClass());
                         if (processImmediately) {
                             // Interpret the packet using the connection state we received it.
-                            MinecraftServer.getPacketListenerManager().processClientPacket(packet, this, currState);
+                            MinecraftServer.getPacketListenerManager().processClientPacket(packet, this);
                         } else {
                             // To be processed during the next player tick
                             final Player player = getPlayer();
@@ -347,7 +337,7 @@ public class PlayerSocketConnection extends PlayerConnection {
 
     private boolean writePacketSync(NetworkBuffer buffer, SendablePacket packet, boolean compressed) {
         final Player player = getPlayer();
-        final ConnectionState state = getConnectionState();
+        final ConnectionState state = getServerState();
         if (player != null) {
             // Outgoing event
             if (outgoing.hasListener()) {
@@ -370,6 +360,9 @@ public class PlayerSocketConnection extends PlayerConnection {
         try {
             return switch (packet) {
                 case ServerPacket serverPacket -> {
+                    var nextState = PacketVanilla.nextServerState(serverPacket, state);
+                    if (nextState != state) setServerState(nextState);
+
                     PacketWriting.writeFramedPacket(buffer, state, serverPacket, compressionThreshold);
                     yield true;
                 }

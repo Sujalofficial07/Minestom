@@ -2,11 +2,13 @@ package net.minestom.server;
 
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import net.minestom.server.advancements.AdvancementManager;
+import net.minestom.server.adventure.ClickCallbackManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.codec.StructCodec;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.dialog.Dialog;
 import net.minestom.server.entity.damage.DamageType;
+import net.minestom.server.entity.metadata.animal.ZombieNautilusVariant;
 import net.minestom.server.entity.metadata.animal.tameable.WolfVariant;
 import net.minestom.server.entity.metadata.other.PaintingVariant;
 import net.minestom.server.event.GlobalEventHandler;
@@ -41,6 +43,7 @@ import net.minestom.server.utils.validate.Check;
 import net.minestom.server.world.Difficulty;
 import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.biome.Biome;
+import net.minestom.server.world.timeline.Timeline;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.UnknownNullability;
 
@@ -263,6 +266,10 @@ public final class MinecraftServer implements MinecraftConstants {
         return serverProcess.advancement();
     }
 
+    public static ClickCallbackManager getClickCallbackManager() {
+        return serverProcess.clickCallbackManager();
+    }
+
     public static DynamicRegistry<ChatType> getChatTypeRegistry() {
         return serverProcess.chatType();
     }
@@ -299,6 +306,10 @@ public final class MinecraftServer implements MinecraftConstants {
         return serverProcess.wolfVariant();
     }
 
+    public static DynamicRegistry<ZombieNautilusVariant> getZombieNautilusVariantRegistry() {
+        return process().zombieNautilusVariant();
+    }
+
     public static DynamicRegistry<Enchantment> getEnchantmentRegistry() {
         return serverProcess.enchantment();
     }
@@ -313,6 +324,10 @@ public final class MinecraftServer implements MinecraftConstants {
 
     public static DynamicRegistry<Instrument> getInstrumentRegistry() {
         return serverProcess.instrument();
+    }
+
+    public static DynamicRegistry<Timeline> getTimelineRegistry() {
+        return serverProcess.timeline();
     }
 
     public static DynamicRegistry<StructCodec<? extends LevelBasedValue>> enchantmentLevelBasedValues() {

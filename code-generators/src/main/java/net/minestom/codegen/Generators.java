@@ -49,6 +49,7 @@ public final class Generators {
         generator.generate(resource("villager_profession.json"), "net.minestom.server.entity", "VillagerProfession", "VillagerProfessionImpl", "VillagerProfessions");
         generator.generate(resource("game_event.json"), "net.minestom.server.game", "GameEvent", "GameEventImpl", "GameEvents");
         generator.generate(resource("block_sound_type.json"), "net.minestom.server.instance.block", "BlockSoundType", "BlockSoundImpl", "BlockSoundTypes");
+        generator.generate(resource("block_entity_types.json"), "net.minestom.server.instance.block", "BlockEntityType", "BlockEntityTypeImpl", "BlockEntityTypes");
 
         // Dynamic registries
         generator.generateKeys(resource("chat_type.json"), "net.minestom.server.message", "ChatType");
@@ -68,7 +69,9 @@ public final class Generators {
         generator.generateKeys(resource("cow_variant.json"), "net.minestom.server.entity.metadata.animal", "CowVariant");
         generator.generateKeys(resource("frog_variant.json"), "net.minestom.server.entity.metadata.animal", "FrogVariant");
         generator.generateKeys(resource("pig_variant.json"), "net.minestom.server.entity.metadata.animal", "PigVariant");
+        generator.generateKeys(resource("zombie_nautilus_variant.json"), "net.minestom.server.entity.metadata.animal", "ZombieNautilusVariant");
         generator.generateKeys(resource("worldgen/biome.json"), "net.minestom.server.world.biome", "Biome");
+        generator.generateKeys(resource("timeline.json"), "net.minestom.server.world.timeline", "Timeline");
 
         System.out.println("Finished generating code");
     }

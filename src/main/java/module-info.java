@@ -1,13 +1,13 @@
 module net.minestom.server {
-    requires static org.jetbrains.annotations;  // TODO remove this when jspecify matures.
-    requires com.google.gson;
+    requires transitive static org.jetbrains.annotations;  // TODO remove this when jspecify matures.
+    requires transitive com.google.gson;
     requires it.unimi.dsi.fastutil;
     requires space.vectrix.flare.fastutil;
     requires jdk.unsupported; // Unsafe
-    requires net.kyori.adventure;
-    requires net.kyori.adventure.nbt;
-    requires net.kyori.adventure.key;
-    requires net.kyori.examination.api;
+    requires transitive net.kyori.adventure;
+    requires transitive net.kyori.adventure.nbt;
+    requires transitive net.kyori.adventure.key;
+    requires transitive net.kyori.examination.api;
     requires net.kyori.adventure.text.logger.slf4j;
     requires net.kyori.adventure.text.serializer.legacy;
     requires net.kyori.adventure.text.serializer.gson;
@@ -57,6 +57,7 @@ module net.minestom.server {
     exports net.minestom.server.entity.metadata.ambient;
     exports net.minestom.server.entity.metadata.animal;
     exports net.minestom.server.entity.metadata.animal.tameable;
+    exports net.minestom.server.entity.metadata.avatar;
     exports net.minestom.server.entity.metadata.display;
     exports net.minestom.server.entity.metadata.flying;
     exports net.minestom.server.entity.metadata.golem;
@@ -86,14 +87,11 @@ module net.minestom.server {
     exports net.minestom.server.event.server;
     exports net.minestom.server.event.trait;
     exports net.minestom.server.exception;
-    exports net.minestom.server.extras;
-    exports net.minestom.server.extras.bungee;
     exports net.minestom.server.extras.lan;
     exports net.minestom.server.extras.mojangAuth;
     exports net.minestom.server.extras.query;
     exports net.minestom.server.extras.query.event;
     exports net.minestom.server.extras.query.response;
-    exports net.minestom.server.extras.velocity;
     exports net.minestom.server.game;
     exports net.minestom.server.gamedata;
     exports net.minestom.server.instance;
@@ -128,6 +126,8 @@ module net.minestom.server {
     exports net.minestom.server.message;
     exports net.minestom.server.monitoring;
     exports net.minestom.server.network;
+    exports net.minestom.server.network.debug;
+    exports net.minestom.server.network.debug.info;
     exports net.minestom.server.network.packet;
     exports net.minestom.server.network.packet.client;
     exports net.minestom.server.network.packet.client.common;
@@ -178,6 +178,8 @@ module net.minestom.server {
     exports net.minestom.server.utils.url;
     exports net.minestom.server.utils.validate;
     exports net.minestom.server.world;
+    exports net.minestom.server.world.attribute;
     exports net.minestom.server.world.biome;
+    exports net.minestom.server.world.timeline;
 
 }

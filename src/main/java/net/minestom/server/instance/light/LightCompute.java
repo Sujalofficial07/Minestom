@@ -85,13 +85,13 @@ public final class LightCompute {
                     };
 
                     if (blockTo == null && blockFrom != null) {
-                        if (blockFrom.registry().collisionShape().isOccluded(Block.AIR.registry().collisionShape(), face.getOppositeFace()))
+                        if (blockFrom.registry().occlusionShape().isOccluded(Block.AIR.registry().occlusionShape(), face.getOppositeFace()))
                             continue;
                     } else if (blockTo != null && blockFrom == null) {
-                        if (Block.AIR.registry().collisionShape().isOccluded(blockTo.registry().collisionShape(), face))
+                        if (Block.AIR.registry().occlusionShape().isOccluded(blockTo.registry().occlusionShape(), face))
                             continue;
                     } else if (blockTo != null && blockFrom != null) {
-                        if (blockFrom.registry().collisionShape().isOccluded(blockTo.registry().collisionShape(), face.getOppositeFace()))
+                        if (blockFrom.registry().occlusionShape().isOccluded(blockTo.registry().occlusionShape(), face.getOppositeFace()))
                             continue;
                     }
 
@@ -158,8 +158,8 @@ public final class LightCompute {
                     final Block currentBlock = Objects.requireNonNullElse(getBlock(blockPalette, x, y, z), Block.AIR);
                     final Block propagatedBlock = Objects.requireNonNullElse(getBlock(blockPalette, xO, yO, zO), Block.AIR);
 
-                    final Shape currentShape = currentBlock.registry().collisionShape();
-                    final Shape propagatedShape = propagatedBlock.registry().collisionShape();
+                    final Shape currentShape = currentBlock.registry().occlusionShape();
+                    final Shape propagatedShape = propagatedBlock.registry().occlusionShape();
 
                     final boolean airAir = currentBlock.isAir() && propagatedBlock.isAir();
                     if (!airAir && currentShape.isOccluded(propagatedShape, BlockFace.fromDirection(direction)))
@@ -197,13 +197,21 @@ public final class LightCompute {
         if (content1 == null && content2 == null) return EMPTY_CONTENT;
         if (content1 == EMPTY_CONTENT && content2 == EMPTY_CONTENT) return EMPTY_CONTENT;
 
+        if (content1 == CONTENT_FULLY_LIT) return CONTENT_FULLY_LIT;
+        if (content2 == CONTENT_FULLY_LIT) return CONTENT_FULLY_LIT;
+
         if (content1 == null) return content2;
         if (content2 == null) return content1;
 
+        if (content1 == content2) return content1;
+
         if (Arrays.equals(content1, EMPTY_CONTENT) && Arrays.equals(content2, EMPTY_CONTENT)) return EMPTY_CONTENT;
 
+        if (Arrays.equals(content1, CONTENT_FULLY_LIT)) return CONTENT_FULLY_LIT;
+        if (Arrays.equals(content2, CONTENT_FULLY_LIT)) return CONTENT_FULLY_LIT;
+
         byte[] lightMax = new byte[LIGHT_LENGTH];
-        for (int i = 0; i < content1.length; i++) {
+        for (int i = 0; i < LIGHT_LENGTH; i++) {
             final byte c1 = content1[i];
             final byte c2 = content2[i];
 
